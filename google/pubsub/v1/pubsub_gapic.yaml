@@ -9,11 +9,9 @@ language_settings:
   csharp:
     package_name: Google.Pubsub.V1
   ruby:
-    package_name: Google::Cloud::Pubsub::V1
+    package_name: Google::Pubsub::V1
   php:
-    package_name: Google\Cloud\PubSub\V1
-  nodejs:
-    package_name: "@google-cloud/pubsub"
+    package_name: Google\Cloud\Pubsub\V1
 interfaces:
 - name: google.pubsub.v1.Subscriber
   collections:
@@ -21,8 +19,6 @@ interfaces:
     entity_name: project
   - name_pattern: projects/{project}/subscriptions/{subscription}
     entity_name: subscription
-  - name_pattern: projects/{project}/topics/{topic}
-    entity_name: topic
   retry_codes_def:
   - name: idempotent
     retry_codes:
@@ -34,19 +30,11 @@ interfaces:
   - name: default
     initial_retry_delay_millis: 100
     retry_delay_multiplier: 1.3
-    max_retry_delay_millis: 60000 # 60 seconds
-    initial_rpc_timeout_millis: 60000 # 60 seconds
+    max_retry_delay_millis: 60000
+    initial_rpc_timeout_millis: 20000
     rpc_timeout_multiplier: 1
-    max_rpc_timeout_millis: 60000 # 60 seconds
-    total_timeout_millis: 600000 # 10 minutes
-  - name: messaging
-    initial_retry_delay_millis: 100
-    retry_delay_multiplier: 1.3
-    max_retry_delay_millis: 60000 # 60 seconds
-    initial_rpc_timeout_millis: 12000 # 12 seconds
-    rpc_timeout_multiplier: 1
-    max_rpc_timeout_millis: 12000 # 12 seconds
-    total_timeout_millis: 600000 # 10 minutes
+    max_rpc_timeout_millis: 20000
+    total_timeout_millis: 600000
   methods:
   - name: CreateSubscription
     flattening:
@@ -59,12 +47,13 @@ interfaces:
     required_fields:
     - name
     - topic
+    - push_config
+    - ack_deadline_seconds
     request_object_method: true
     retry_codes_name: idempotent
     retry_params_name: default
     field_name_patterns:
       name: subscription
-      topic: topic
     timeout_millis: 60000
   - name: GetSubscription
     flattening:
@@ -140,7 +129,7 @@ interfaces:
     - ack_ids
     request_object_method: true
     retry_codes_name: non_idempotent
-    retry_params_name: messaging
+    retry_params_name: default
     field_name_patterns:
       subscription: subscription
     timeout_millis: 60000
@@ -153,10 +142,11 @@ interfaces:
         - max_messages
     required_fields:
     - subscription
+    - return_immediately
     - max_messages
     request_object_method: true
     retry_codes_name: non_idempotent
-    retry_params_name: messaging
+    retry_params_name: default
     field_name_patterns:
       subscription: subscription
     timeout_millis: 60000
@@ -175,52 +165,6 @@ interfaces:
     field_name_patterns:
       subscription: subscription
     timeout_millis: 60000
-  - name: SetIamPolicy
-    flattening:
-      groups:
-      - parameters:
-        - resource
-        - policy
-    required_fields:
-    - resource
-    - policy
-    request_object_method: true
-    retry_codes_name: non_idempotent
-    retry_params_name: default
-    field_name_patterns:
-      resource: subscription
-    timeout_millis: 60000
-    reroute_to_grpc_interface: google.iam.v1.IAMPolicy
-  - name: GetIamPolicy
-    flattening:
-      groups:
-      - parameters:
-        - resource
-    required_fields:
-    - resource
-    request_object_method: false
-    retry_codes_name: idempotent
-    retry_params_name: default
-    field_name_patterns:
-      resource: subscription
-    timeout_millis: 60000
-    reroute_to_grpc_interface: google.iam.v1.IAMPolicy
-  - name: TestIamPermissions
-    flattening:
-      groups:
-      - parameters:
-        - resource
-        - permissions
-    required_fields:
-    - resource
-    - permissions
-    request_object_method: true
-    retry_codes_name: non_idempotent
-    retry_params_name: default
-    field_name_patterns:
-      resource: subscription
-    timeout_millis: 60000
-    reroute_to_grpc_interface: google.iam.v1.IAMPolicy
 - name: google.pubsub.v1.Publisher
   collections:
   - name_pattern: projects/{project}
@@ -232,29 +176,17 @@ interfaces:
     retry_codes:
     - UNAVAILABLE
     - DEADLINE_EXCEEDED
-  - name: one_plus_delivery
-    retry_codes:
-    - UNAVAILABLE
-    - DEADLINE_EXCEEDED
   - name: non_idempotent
     retry_codes: []
   retry_params_def:
   - name: default
     initial_retry_delay_millis: 100
     retry_delay_multiplier: 1.3
-    max_retry_delay_millis: 60000 # 60 seconds
-    initial_rpc_timeout_millis: 60000 # 60 seconds
+    max_retry_delay_millis: 60000
+    initial_rpc_timeout_millis: 20000
     rpc_timeout_multiplier: 1
-    max_rpc_timeout_millis: 60000 # 60 seconds
-    total_timeout_millis: 600000 # 10 minutes
-  - name: messaging
-    initial_retry_delay_millis: 100
-    retry_delay_multiplier: 1.3
-    max_retry_delay_millis: 60000 # 60 seconds
-    initial_rpc_timeout_millis: 12000 # 12 seconds
-    rpc_timeout_multiplier: 1
-    max_rpc_timeout_millis: 12000 # 12 seconds
-    total_timeout_millis: 600000 # 10 minutes
+    max_rpc_timeout_millis: 20000
+    total_timeout_millis: 600000
   methods:
   - name: CreateTopic
     flattening:
@@ -279,24 +211,10 @@ interfaces:
     - topic
     - messages
     request_object_method: true
-    retry_codes_name: one_plus_delivery
-    retry_params_name: messaging
-    bundling:
-      thresholds:
-        element_count_threshold: 10
-        element_count_limit: 1000 # TO BE REMOVED LATER
-        request_byte_threshold: 1024 # 1 Kb
-        request_byte_limit: 10485760 # TO BE REMOVED LATER
-        delay_threshold_millis: 10
-      bundle_descriptor:
-        bundled_field: messages
-        discriminator_fields:
-        - topic
-        subresponse_field: message_ids
+    retry_codes_name: non_idempotent
+    retry_params_name: default
     field_name_patterns:
       topic: topic
-    sample_code_init_fields:
-    - messages[0].data
     timeout_millis: 60000
   - name: GetTopic
     flattening:
@@ -364,49 +282,3 @@ interfaces:
     field_name_patterns:
       topic: topic
     timeout_millis: 60000
-  - name: SetIamPolicy
-    flattening:
-      groups:
-      - parameters:
-        - resource
-        - policy
-    required_fields:
-    - resource
-    - policy
-    request_object_method: true
-    retry_codes_name: non_idempotent
-    retry_params_name: default
-    field_name_patterns:
-      resource: topic
-    timeout_millis: 60000
-    reroute_to_grpc_interface: google.iam.v1.IAMPolicy
-  - name: GetIamPolicy
-    flattening:
-      groups:
-      - parameters:
-        - resource
-    required_fields:
-    - resource
-    request_object_method: false
-    retry_codes_name: idempotent
-    retry_params_name: default
-    field_name_patterns:
-      resource: topic
-    timeout_millis: 60000
-    reroute_to_grpc_interface: google.iam.v1.IAMPolicy
-  - name: TestIamPermissions
-    flattening:
-      groups:
-      - parameters:
-        - resource
-        - permissions
-    required_fields:
-    - resource
-    - permissions
-    request_object_method: true
-    retry_codes_name: non_idempotent
-    retry_params_name: default
-    field_name_patterns:
-      resource: topic
-    timeout_millis: 60000
-    reroute_to_grpc_interface: google.iam.v1.IAMPolicy
